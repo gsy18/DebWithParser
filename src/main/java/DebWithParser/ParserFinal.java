@@ -34,10 +34,12 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeS
 import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.PriorityQueue;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -45,21 +47,29 @@ import java.util.logging.Logger;
  *
  * @author gopesh
  */
-public class ParserFinal {
+public class ParserFinal 
+{
+    
 static CombinedTypeSolver combinedTypeSolver;
-static TreeMap<Integer,PriorityQueue<Node>>nodesByLine;
+static TreeMap<Integer,TreeSet<Node>>nodesByLine;
+HashMap <String,HashSet<String>>taint_information;
+HashSet <String>sensitive_variables;
+boolean sensitiveSourceCalled;
     /**
      * @param args the command line arguments
      */
-    public static void main(String[] args) {
+    ParserFinal(String pathToClassFile) {
         try 
         {
             nodesByLine=new TreeMap<>();
-            combinedTypeSolver = new CombinedTypeSolver();
+            taint_information=new HashMap<>();
+            sensitive_variables=new HashSet<>();;
+           /* combinedTypeSolver = new CombinedTypeSolver();
             combinedTypeSolver.add(new ReflectionTypeSolver());
             combinedTypeSolver.add(new JarTypeSolver("android.jar"));
             combinedTypeSolver.add(new JavaParserTypeSolver("/home/gopesh/NetBeansProjects/ParserNow/src/main/java"));
-            CompilationUnit cu = JavaParser.parse(new FileInputStream("/home/gopesh/NetBeansProjects/ParserNow/src/main/java/ParserNow/MainActivity.java"));
+            */
+            CompilationUnit cu = JavaParser.parse(new FileInputStream(pathToClassFile));
             VoidVisitor<?> methodNameVisitor = new MethodNamePrinter();
             methodNameVisitor.visit(cu, null); 
             /*for(int num:nodesByLine.keySet())
@@ -75,33 +85,36 @@ static TreeMap<Integer,PriorityQueue<Node>>nodesByLine;
             }*/
             
             System.out.println("<----------Parsing done----------->");
-            for(int key:nodesByLine.keySet())
-            {
-                PriorityQueue <Node>curLine=nodesByLine.get(key);
-                while(!curLine.isEmpty())
-                {
-                    Node curNode=curLine.remove();
-                    if(curNode instanceof MethodCallExpr)
-                    {
-                        handleMethodCall((MethodCallExpr)curNode);
-                    }
-                    else if(curNode instanceof AssignExpr)
-                    {
-                        handleAssignment((AssignExpr)curNode);
-                    }
-                    else
-                    {
-                        handleVariableDeclaration((VariableDeclarator)curNode);
-                    }
-                }
-            }
         } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
     
-    
-    static void handleMethodCall(MethodCallExpr md)
+    public void handleOneStepExecution(int lineNumber,boolean sensitive)
+    {
+        sensitiveSourceCalled=sensitive;
+        TreeSet <Node>curLine=nodesByLine.get(lineNumber);
+        if(curLine!=null)
+        {
+            for(Node curNode:curLine)
+            {
+                if(curNode instanceof MethodCallExpr)
+                {
+                    handleMethodCall((MethodCallExpr)curNode);
+                }
+                else if(curNode instanceof AssignExpr)
+                {
+                    handleAssignment((AssignExpr)curNode);
+                }
+                else
+                {
+                    handleVariableDeclaration((VariableDeclarator)curNode);
+                }
+            }
+        }                
+    }        
+            
+    private void handleMethodCall(MethodCallExpr md)
     {
         String tovar=trimToVar(md);
         if(!tovar.equals(""))
@@ -119,10 +132,14 @@ static TreeMap<Integer,PriorityQueue<Node>>nodesByLine;
             }
             List <NameExpr>allVar=md.findAll(NameExpr.class);
             List <FieldAccessExpr>allClassVar=md.findAll(FieldAccessExpr.class);
-            printVarFlowingInto(allVar,allClassVar,tovar);  
+            printVarFlowingInto(allVar,allClassVar,tovar); 
+            if(sensitiveSourceCalled)
+            {
+                sensitive_variables.add(tovar);
+            }
         }            
     }
-    static void  handleAssignment(AssignExpr md)
+    private void  handleAssignment(AssignExpr md)
     {
         /*        
         Node left=md.getChildNodes().get(0);
@@ -161,10 +178,14 @@ static TreeMap<Integer,PriorityQueue<Node>>nodesByLine;
         }
         List <NameExpr>allVar=right.findAll(NameExpr.class);
         List <FieldAccessExpr>allClassVar=right.findAll(FieldAccessExpr.class);
-        printVarFlowingInto(allVar,allClassVar,tovar);  
+        printVarFlowingInto(allVar,allClassVar,tovar); 
+        if(sensitiveSourceCalled)
+        {
+            sensitive_variables.add(tovar);
+        }
     }
                     
-    static void handleVariableDeclaration(VariableDeclarator md)
+    private void handleVariableDeclaration(VariableDeclarator md)
     {
          if(md.toString().contains("="))
          {
@@ -176,11 +197,15 @@ static TreeMap<Integer,PriorityQueue<Node>>nodesByLine;
             }
             List <NameExpr>allVar=right.findAll(NameExpr.class);
             List <FieldAccessExpr>allClassVar=right.findAll(FieldAccessExpr.class);
-            printVarFlowingInto(allVar,allClassVar,tovar);  
+            printVarFlowingInto(allVar,allClassVar,tovar); 
+            if(sensitiveSourceCalled)
+            {
+                sensitive_variables.add(tovar);
+            }
          }
     }
     
-    static String trimToVar(Expression exp)
+    private String trimToVar(Expression exp)
     {
         while((exp.isMethodCallExpr()&&exp.toMethodCallExpr().get().getScope().isPresent())||(exp.isFieldAccessExpr()))
         {
@@ -209,9 +234,9 @@ static TreeMap<Integer,PriorityQueue<Node>>nodesByLine;
         }
     }
     
-    static void printVarFlowingInto(List <NameExpr>allVar,List <FieldAccessExpr>allClassVar,String toVar)
+    private void printVarFlowingInto(List <NameExpr>allVar,List <FieldAccessExpr>allClassVar,String toVar)
     {
-        HashSet <String> flowingInto=new HashSet<>();
+        HashSet <String> flowingInto=new HashSet<>(); 
         if((!allVar.isEmpty())&&(allVar.stream().filter(i->!(i.getNameAsString().equals(toVar))).count()>0))
         {                
             
@@ -220,7 +245,7 @@ static TreeMap<Integer,PriorityQueue<Node>>nodesByLine;
                 String varName=cur.getNameAsString();
                 if(!varName.equals(toVar))
                 {
-                    flowingInto.add(varName+" ");
+                    flowingInto.add(varName);
                 }
             }
         }
@@ -233,13 +258,32 @@ static TreeMap<Integer,PriorityQueue<Node>>nodesByLine;
                 
                 if((!varName.equals(toVar))&&cur.getScope().toString().equals("this"))
                 {
-                    flowingInto.add(varName+" ");
+                    flowingInto.add(varName);
                 }
             }
         }
         if(!flowingInto.isEmpty())
         {
+            
             System.out.println(toVar+" <-- "+flowingInto);
+            for(String temp:flowingInto)
+            {   
+                if(!taint_information.keySet().contains(toVar))
+                {
+                    taint_information.put(toVar, new HashSet<>());
+                }
+                taint_information.get(toVar).add(temp);
+                
+                if(taint_information.keySet().contains(temp))
+                {
+                    taint_information.get(toVar).addAll(taint_information.get(temp));
+                }
+                // taint_information.put(toVar,taint_information.get(toVar)+" "+temp+" "+taint_information.get(temp));
+                if(sensitive_variables.contains(temp))
+                {
+                    sensitive_variables.add(toVar);
+                }
+            }
         }
     }
     
@@ -254,10 +298,10 @@ static TreeMap<Integer,PriorityQueue<Node>>nodesByLine;
             
                 if(nodesByLine.get(line)==null)
                 {
-                    nodesByLine.put(line,new PriorityQueue<Node>(new NodeComparator()));
+                    nodesByLine.put(line,new TreeSet<Node>(new NodeComparator()));
                 }
                 nodesByLine.get(line).add(md);
-                System.out.println(md+"   VariableDeclarator ");
+                // System.out.println(md+"   VariableDeclarator ");
               //  super.visit(md, arg);
             }            
        }
@@ -267,10 +311,10 @@ static TreeMap<Integer,PriorityQueue<Node>>nodesByLine;
             int line=md.getBegin().get().line;
             if(nodesByLine.get(line)==null)
             {
-                nodesByLine.put(line,new PriorityQueue<Node>(new NodeComparator()));
+                nodesByLine.put(line,new TreeSet<Node>(new NodeComparator()));
             }
             nodesByLine.get(line).add(md);
-            System.out.println(md+"   AssignExpr");
+          //  System.out.println(md+"   AssignExpr");
           //  super.visit(md, arg);
        }
        
@@ -279,10 +323,10 @@ static TreeMap<Integer,PriorityQueue<Node>>nodesByLine;
             int line=md.getBegin().get().line;
             if(nodesByLine.get(line)==null)
             {
-                nodesByLine.put(line,new PriorityQueue<Node>(new NodeComparator()));
+                nodesByLine.put(line,new TreeSet<Node>(new NodeComparator()));
             }
             nodesByLine.get(line).add(md);
-            System.out.println(md+"   MethodCallExpr");
+           // System.out.println(md+"   MethodCallExpr");
             if(md.getNameAsString().equals("forEach"))
             {
                 super.visit(md, arg);

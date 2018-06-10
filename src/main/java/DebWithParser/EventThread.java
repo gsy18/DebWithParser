@@ -21,10 +21,11 @@ public class EventThread extends Thread {
     int b1,b2;
     static String nextBaseIndent = ""; // Starting indent for next thread
     int lineJustExecuted;
-    HashMap <String,String>taint_information;
-    HashSet <String>sensitive_variables;
     HashSet <String>sensitive_sources;
     HashSet <String>sensitive_sinks;
+    ParserFinal parserCurrent;
+    String watchVariables="";
+    boolean whetherLastMethodCallSensitive=false;
     private boolean connected = true;  // Connected to VM
     private boolean vmDied = true;     // VMDeath occurred
 
@@ -32,17 +33,17 @@ public class EventThread extends Thread {
     private Map<ThreadReference, ThreadTrace> traceMap =
        new HashMap<>();
 
-    EventThread(String yy, String hhp,int i, int j,HashSet <String>sr1,HashSet <String>sr2,VirtualMachine vm, String[] excludes, PrintWriter writer) {
+    EventThread(String yy, String hhp,int i, int j,HashSet <String>sr1,HashSet <String>sr2,VirtualMachine vm, String[] excludes, PrintWriter writer,ParserFinal parse) {
         super("event-handler");
         this.vm = vm;
-        taint_information=new HashMap<>();
         sensitive_sources=sr1;
         debugClassName=yy;
+        watchVariables=hhp;
         b1=i;
         b2=j;
         System.out.println("got breakpoints "+i+" and"+j);
         sensitive_sinks=sr2;
-        sensitive_variables=new HashSet<>();  
+        parserCurrent=parse;
     }
 
     /**
@@ -109,11 +110,11 @@ public class EventThread extends Thread {
 
 
         void methodEntryEvent(MethodEntryEvent event)  { 
-        /*   String methodCall=event.location().declaringType().name()+"->"+event.method().name();
+           String methodCall=event.location().declaringType().name()+"->"+event.method().name();
            if(sensitive_sources.contains(methodCall))
            {
-               System.out.println(methodCall);
-           }*/
+               whetherLastMethodCallSensitive=true;
+           }
         }
 
         void methodExitEvent(MethodExitEvent event)  {
@@ -166,21 +167,41 @@ public class EventThread extends Thread {
             try 
             {
                 EventRequestManager mgr = vm.eventRequestManager();
+                parserCurrent.handleOneStepExecution(lineJustExecuted,whetherLastMethodCallSensitive);
+                whetherLastMethodCallSensitive=false;
+               // System.out.println("At Line:"+lineJustExecuted+" Sensitive Variables: "+parserCurrent.sensitive_variables);
                 if(b2==lineJustExecuted)
                 {
                     mgr.deleteEventRequest(mgr.stepRequests().get(0));
                     mgr.deleteEventRequests(mgr.methodEntryRequests());
                     mgr.deleteEventRequests(mgr.breakpointRequests());
                     System.out.println("second breakpoint at "+b2);
+                    watchVariables=watchVariables.trim();
+                    if(!watchVariables.equals(""))
+                    {
+                        for(String wVar:watchVariables.split(" "))
+                        {
+                            wVar=wVar.trim();
+                            if(parserCurrent.taint_information.containsKey(wVar))
+                            {
+                                System.out.println(wVar+" has touched: "+parserCurrent.taint_information.get(wVar));
+                            }
+                            else
+                            {
+                                System.out.println(wVar+" has touched: "+wVar);
+                            }
+                        }
+                    }
                 }
                 else
                 {
+                    
                    mgr.deleteEventRequest(event.request());
-                   System.out.println("step event at "+event.location().lineNumber()+"  "+event.location().declaringType().name());
-                   StepRequest st=mgr.createStepRequest(event.thread(),StepRequest.STEP_LINE,StepRequest.STEP_INTO);
+                 //  System.out.println("step event at "+event.location().lineNumber()+"  "+event.location().declaringType().name());
+                   StepRequest st=mgr.createStepRequest(event.thread(),StepRequest.STEP_LINE,StepRequest.STEP_OVER);
                    st.addCountFilter(1);
-                  // st.addClassFilter("*."+debugClassName);
-                   st.addClassExclusionFilter("android.*");
+                   st.addClassFilter("*."+debugClassName);
+                  // st.addClassExclusionFilter("android.*");
                  //  st.addClassExclusionFilter("java.*");
                    st.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
                    st.enable(); 

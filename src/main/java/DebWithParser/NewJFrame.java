@@ -28,6 +28,7 @@ import javax.swing.table.TableColumnModel;
 public class NewJFrame extends javax.swing.JFrame {
 int r1=-1,r2=-1;
 static String fname;
+ParserFinal parse;
     /**
      * Creates new form NewJFrame
      */
@@ -252,6 +253,7 @@ static String fname;
                     //System.out.println(ff.getAbsolutePath());
                     String path="/home/gopesh/AndroidStudioProjects/Sms_Location/app/src/main/java/com/example/gopesh/sms_location/MainActivity.java";
                     fname="MainActivity";
+                    mm.parse=new ParserFinal(path);
                     br = new BufferedReader(new FileReader(path));
                     String hh=null;
                     int c=1;
@@ -343,7 +345,7 @@ static String fname;
     {
         @Override
         public void run() {
-            new Desbdesk2(fname,r1+1,r2+1,tf1.getText());
+            new Desbdesk2(fname,r1+1,r2+1,tf1.getText(),parse);
         }
 
     }

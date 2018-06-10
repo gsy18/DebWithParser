@@ -58,7 +58,7 @@ public class Desbdesk2{
      * Launch target VM.
      * Generate the trace.
      */
-    Desbdesk2(String mhh,int i,int j,String sv) 
+    Desbdesk2(String mhh,int i,int j,String sv,ParserFinal parse) 
     {
        r1=i;
        r2=j;
@@ -101,16 +101,16 @@ public class Desbdesk2{
            vm=attacher.attach(arguments);    
            System.out.println("rerer");
            //vm=launcher.launch(arguments);
-           generateTrace(writer);           
+           generateTrace(writer,parse);           
         }
         catch (Exception e) {  
             e.printStackTrace();
         } 
         
     }
-    void generateTrace(PrintWriter writer) {
+    void generateTrace(PrintWriter writer,ParserFinal parse) {
         vm.setDebugTraceMode(debugTraceMode);
-        EventThread eventThread = new EventThread(fname,s_var, r1,r2,sources,sinks,vm, excludes, writer);
+        EventThread eventThread = new EventThread(fname,s_var, r1,r2,sources,sinks,vm, excludes, writer,parse);
         eventThread.setEventRequests(watchFields);
         eventThread.start();
        // redirectOutput();
