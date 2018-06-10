@@ -56,6 +56,7 @@ static TreeMap<Integer,TreeSet<Node>>nodesByLine;
 HashMap <String,HashSet<String>>taint_information;
 HashSet <String>sensitive_variables;
 boolean sensitiveSourceCalled;
+int currentLine;
     /**
      * @param args the command line arguments
      */
@@ -95,6 +96,7 @@ boolean sensitiveSourceCalled;
     {
         sensitiveSourceCalled=sensitive;
         TreeSet <Node>curLine=nodesByLine.get(lineNumber);
+        currentLine=lineNumber;
         if(curLine!=null)
         {
             for(Node curNode:curLine)
@@ -132,11 +134,11 @@ boolean sensitiveSourceCalled;
                 {
                     if(arg.findAll(NameExpr.class).stream().filter(h->sensitive_variables.contains(h.getNameAsString())).count()>0)
                     {
-                        System.out.println("Data Leaked by "+sExp.removeScope());
+                        System.out.println("Data Leaked by "+sExp.getNameAsString()+" at "+currentLine);
                     }
                     if(arg.findAll(FieldAccessExpr.class).stream().filter(h->sensitive_variables.contains("this."+h.getNameAsString())).count()>0)
                     {
-                        System.out.println("Data Leaked by "+sExp.removeScope());
+                        System.out.println("Data Leaked by "+sExp.getNameAsString()+" at "+currentLine);
                     }
                 }                
             }                            
@@ -161,7 +163,7 @@ boolean sensitiveSourceCalled;
             }
             List <NameExpr>allVar=md.findAll(NameExpr.class);
             List <FieldAccessExpr>allClassVar=md.findAll(FieldAccessExpr.class);
-            printVarFlowingInto(allVar,allClassVar,tovar); 
+            printVarFlowingInto(allVar,allClassVar,tovar,false); 
             if(sensitiveSourceCalled)
             {
                 sensitive_variables.add(tovar);
@@ -207,7 +209,15 @@ boolean sensitiveSourceCalled;
         }
         List <NameExpr>allVar=right.findAll(NameExpr.class);
         List <FieldAccessExpr>allClassVar=right.findAll(FieldAccessExpr.class);
-        printVarFlowingInto(allVar,allClassVar,tovar); 
+        
+        if(allVar.isEmpty()&&allClassVar.isEmpty()&&(!right.findFirst(MethodCallExpr.class).isPresent()))
+        {
+            sensitive_variables.remove(tovar);
+        }
+        else
+        {
+            printVarFlowingInto(allVar,allClassVar,tovar,true); 
+        }
         if(sensitiveSourceCalled)
         {
             sensitive_variables.add(tovar);
@@ -226,11 +236,7 @@ boolean sensitiveSourceCalled;
             }
             List <NameExpr>allVar=right.findAll(NameExpr.class);
             List <FieldAccessExpr>allClassVar=right.findAll(FieldAccessExpr.class);
-            printVarFlowingInto(allVar,allClassVar,tovar); 
-            if(allVar.isEmpty()&&allClassVar.isEmpty()&&(!right.findFirst(MethodCallExpr.class).isPresent()))
-            {
-                sensitive_variables.remove(tovar);
-            }
+            printVarFlowingInto(allVar,allClassVar,tovar,false);
             if(sensitiveSourceCalled)
             {
                 sensitive_variables.add(tovar);
@@ -267,7 +273,7 @@ boolean sensitiveSourceCalled;
         }
     }
     
-    private void printVarFlowingInto(List <NameExpr>allVar,List <FieldAccessExpr>allClassVar,String toVar)
+    private void printVarFlowingInto(List <NameExpr>allVar,List <FieldAccessExpr>allClassVar,String toVar,boolean assignStatement)
     {
         HashSet <String> flowingInto=new HashSet<>(); 
         if((!allVar.isEmpty())&&(allVar.stream().filter(i->!(i.getNameAsString().equals(toVar))).count()>0))
@@ -321,9 +327,10 @@ boolean sensitiveSourceCalled;
                     sensitive_variables.add(toVar);
                 }
             }
-            if(!toVar_Touched_Sensitive)
+            if(assignStatement&&was_toVar_SensitiveBeforeAssign&&(!toVar_Touched_Sensitive))
             {
                 sensitive_variables.remove(toVar);
+               // System.out.println("-------------------removed------------"+toVar);
             }
         }
     }

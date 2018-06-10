@@ -132,8 +132,8 @@ public class EventThread extends Thread {
         {  
         }
         void exceptionEvent(ExceptionEvent event) {
-            System.err.println("Exception: " + event.exception() +
-                    " catch: " + event.toString());
+            //System.err.println("Exception: " + event.exception() +
+              //      " catch: " + event.toString());
         }
         void breakpointEvent(BreakpointEvent event){
             try 
