@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.TreeMap;
 import java.util.PriorityQueue;
 import java.util.TreeSet;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -90,7 +91,7 @@ boolean sensitiveSourceCalled;
         }
     }
     
-    public void handleOneStepExecution(int lineNumber,boolean sensitive)
+    public void handleOneStepExecution(int lineNumber,boolean sensitive,String sensitiveSinkCall)
     {
         sensitiveSourceCalled=sensitive;
         TreeSet <Node>curLine=nodesByLine.get(lineNumber);
@@ -110,10 +111,38 @@ boolean sensitiveSourceCalled;
                 {
                     handleVariableDeclaration((VariableDeclarator)curNode);
                 }
+                if(!sensitiveSinkCall.equals(""))
+                {
+                    checkDataLeakage(sensitiveSinkCall,curNode);
+                }
             }
         }                
     }        
             
+    private void checkDataLeakage(String sensitiveSinkCall, Node curNode)
+    {
+        sensitiveSinkCall=sensitiveSinkCall;
+        List <MethodCallExpr> allMethodsInLine=curNode.findAll(MethodCallExpr.class);
+        for(MethodCallExpr sExp:allMethodsInLine)
+        {
+            sExp=sExp.removeScope();
+            if(sensitiveSinkCall.contains(sExp.getNameAsString()+" "))
+            {
+                for(Expression arg:sExp.getArguments())
+                {
+                    if(arg.findAll(NameExpr.class).stream().filter(h->sensitive_variables.contains(h.getNameAsString())).count()>0)
+                    {
+                        System.out.println("Data Leaked by "+sExp.removeScope());
+                    }
+                    if(arg.findAll(FieldAccessExpr.class).stream().filter(h->sensitive_variables.contains("this."+h.getNameAsString())).count()>0)
+                    {
+                        System.out.println("Data Leaked by "+sExp.removeScope());
+                    }
+                }                
+            }                            
+        }        
+    }
+    
     private void handleMethodCall(MethodCallExpr md)
     {
         String tovar=trimToVar(md);
@@ -198,6 +227,10 @@ boolean sensitiveSourceCalled;
             List <NameExpr>allVar=right.findAll(NameExpr.class);
             List <FieldAccessExpr>allClassVar=right.findAll(FieldAccessExpr.class);
             printVarFlowingInto(allVar,allClassVar,tovar); 
+            if(allVar.isEmpty()&&allClassVar.isEmpty()&&(!right.findFirst(MethodCallExpr.class).isPresent()))
+            {
+                sensitive_variables.remove(tovar);
+            }
             if(sensitiveSourceCalled)
             {
                 sensitive_variables.add(tovar);
@@ -243,10 +276,7 @@ boolean sensitiveSourceCalled;
             for(NameExpr cur:allVar)
             {
                 String varName=cur.getNameAsString();
-                if(!varName.equals(toVar))
-                {
-                    flowingInto.add(varName);
-                }
+                flowingInto.add(varName);
             }
         }
         
@@ -256,7 +286,7 @@ boolean sensitiveSourceCalled;
             {
                 String varName=cur.toString();
                 
-                if((!varName.equals(toVar))&&cur.getScope().toString().equals("this"))
+                if(cur.getScope().toString().equals("this"))
                 {
                     flowingInto.add(varName);
                 }
@@ -265,24 +295,35 @@ boolean sensitiveSourceCalled;
         if(!flowingInto.isEmpty())
         {
             
-            System.out.println(toVar+" <-- "+flowingInto);
+           // System.out.println(toVar+" <-- "+flowingInto);
+            boolean was_toVar_SensitiveBeforeAssign=sensitive_variables.contains(toVar);
+            boolean toVar_Touched_Sensitive=false;
             for(String temp:flowingInto)
-            {   
-                if(!taint_information.keySet().contains(toVar))
+            {
+                if(!temp.equals(toVar))
                 {
-                    taint_information.put(toVar, new HashSet<>());
-                }
-                taint_information.get(toVar).add(temp);
-                
-                if(taint_information.keySet().contains(temp))
-                {
-                    taint_information.get(toVar).addAll(taint_information.get(temp));
-                }
-                // taint_information.put(toVar,taint_information.get(toVar)+" "+temp+" "+taint_information.get(temp));
+                    if(!taint_information.keySet().contains(toVar))
+                    {
+                        taint_information.put(toVar, new HashSet<>());
+                    }
+                    taint_information.get(toVar).add(temp);
+
+                    if(taint_information.keySet().contains(temp))
+                    {
+                        taint_information.get(toVar).addAll(taint_information.get(temp));
+                    }
+                    // taint_information.put(toVar,taint_information.get(toVar)+" "+temp+" "+taint_information.get(temp));
+                    
+                }   
                 if(sensitive_variables.contains(temp))
                 {
+                    toVar_Touched_Sensitive=true;
                     sensitive_variables.add(toVar);
                 }
+            }
+            if(!toVar_Touched_Sensitive)
+            {
+                sensitive_variables.remove(toVar);
             }
         }
     }

@@ -25,6 +25,7 @@ public class EventThread extends Thread {
     HashSet <String>sensitive_sinks;
     ParserFinal parserCurrent;
     String watchVariables="";
+    String sensitiveSinkCall="";
     boolean whetherLastMethodCallSensitive=false;
     private boolean connected = true;  // Connected to VM
     private boolean vmDied = true;     // VMDeath occurred
@@ -115,6 +116,10 @@ public class EventThread extends Thread {
            {
                whetherLastMethodCallSensitive=true;
            }
+           else if(sensitive_sinks.contains(methodCall))
+           {
+               sensitiveSinkCall+=event.method().name()+" ";
+           }
         }
 
         void methodExitEvent(MethodExitEvent event)  {
@@ -167,9 +172,10 @@ public class EventThread extends Thread {
             try 
             {
                 EventRequestManager mgr = vm.eventRequestManager();
-                parserCurrent.handleOneStepExecution(lineJustExecuted,whetherLastMethodCallSensitive);
+                parserCurrent.handleOneStepExecution(lineJustExecuted,whetherLastMethodCallSensitive,sensitiveSinkCall);
                 whetherLastMethodCallSensitive=false;
-               // System.out.println("At Line:"+lineJustExecuted+" Sensitive Variables: "+parserCurrent.sensitive_variables);
+                sensitiveSinkCall="";
+                System.out.println("At Line:"+lineJustExecuted+" Sensitive Variables: "+parserCurrent.sensitive_variables);
                 if(b2==lineJustExecuted)
                 {
                     mgr.deleteEventRequest(mgr.stepRequests().get(0));
