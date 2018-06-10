@@ -91,7 +91,7 @@ public class EventThread extends Thread {
         tdr.enable();
         ClassPrepareRequest cpr = mgr.createClassPrepareRequest();            
         cpr.addClassFilter("*."+debugClassName);
-        cpr.setSuspendPolicy(EventRequest.SUSPEND_NONE);
+        cpr.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
         cpr.enable();        
     }
 
@@ -109,11 +109,11 @@ public class EventThread extends Thread {
 
 
         void methodEntryEvent(MethodEntryEvent event)  { 
-           String methodCall=event.location().declaringType().name()+"->"+event.method().name();
+        /*   String methodCall=event.location().declaringType().name()+"->"+event.method().name();
            if(sensitive_sources.contains(methodCall))
            {
                System.out.println(methodCall);
-           }
+           }*/
         }
 
         void methodExitEvent(MethodExitEvent event)  {
@@ -176,10 +176,12 @@ public class EventThread extends Thread {
                 else
                 {
                    mgr.deleteEventRequest(event.request());
-                   System.out.println("step event at "+event.location().lineNumber());
-                   StepRequest st=mgr.createStepRequest(event.thread(),StepRequest.STEP_LINE,StepRequest.STEP_OVER);
+                   System.out.println("step event at "+event.location().lineNumber()+"  "+event.location().declaringType().name());
+                   StepRequest st=mgr.createStepRequest(event.thread(),StepRequest.STEP_LINE,StepRequest.STEP_INTO);
                    st.addCountFilter(1);
-                   st.addClassFilter("*."+debugClassName);
+                  // st.addClassFilter("*."+debugClassName);
+                   st.addClassExclusionFilter("android.*");
+                 //  st.addClassExclusionFilter("java.*");
                    st.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
                    st.enable(); 
                 }
