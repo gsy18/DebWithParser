@@ -156,40 +156,36 @@ ParserFinal parse;
 
     private void jTable1MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jTable1MouseClicked
         // TODO add your handling code here:
-      if(jTable1.columnAtPoint(evt.getPoint())==0)  
+      if((jTable1.columnAtPoint(evt.getPoint())==0))  
        {
         int r=jTable1.rowAtPoint(evt.getPoint());
-        if(r1==-1)
+        if(parse.nodesByLine.keySet().contains(r+1))
         {
-           r1=r; 
-        }               
-        else if(r==r1)
-        {
-            r1=-1;
-        }
-        else if(r==r2)
-        {
-            r2=-1;
-        }
-        else if(r2==-1)
-        {
-            r2=r;
-        }       
-        else if(r2==-1)
-        {
-            r2=r;
-        }
-        else if(r2==-1)
-        {
-            r2=r;
-        }
-        else if(r<r1)
-        {
-            r1=r;
-        }        
-        else
-        {
-            r2=r;
+        
+            if(r1==-1)
+            {
+               r1=r; 
+            }               
+            else if(r==r1)
+            {
+                r1=-1;
+            }
+            else if(r==r2)
+            {
+                r2=-1;
+            }
+            else if(r2==-1)
+            {
+                r2=r;
+            }
+            else if(r<r1)
+            {
+                r1=r;
+            }        
+            else
+            {
+                r2=r;
+            }
         }
        }
       jTable1.repaint();

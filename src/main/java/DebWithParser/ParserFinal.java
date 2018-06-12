@@ -51,8 +51,8 @@ import java.util.logging.Logger;
 public class ParserFinal 
 {
     
-static CombinedTypeSolver combinedTypeSolver;
-static TreeMap<Integer,TreeSet<Node>>nodesByLine;
+CombinedTypeSolver combinedTypeSolver;
+TreeMap<Integer,TreeSet<Node>>nodesByLine;
 HashMap <String,HashSet<String>>taint_information;
 HashSet <String>sensitive_variables;
 boolean sensitiveSourceCalled;
@@ -172,6 +172,7 @@ int currentLine;
     }
     private void  handleAssignment(AssignExpr md)
     {
+        boolean isSimpleAssign=md.getOperator().toString().equals("ASSIGN");
         /*        
         Node left=md.getChildNodes().get(0);
         String toVar=left.toString();
@@ -210,13 +211,13 @@ int currentLine;
         List <NameExpr>allVar=right.findAll(NameExpr.class);
         List <FieldAccessExpr>allClassVar=right.findAll(FieldAccessExpr.class);
         
-        if(allVar.isEmpty()&&allClassVar.isEmpty()&&(!right.findFirst(MethodCallExpr.class).isPresent()))
+        if(allVar.isEmpty()&&allClassVar.isEmpty()&&(!right.findFirst(MethodCallExpr.class).isPresent())&& isSimpleAssign)
         {
             sensitive_variables.remove(tovar);
         }
         else
         {
-            printVarFlowingInto(allVar,allClassVar,tovar,true); 
+            printVarFlowingInto(allVar,allClassVar,tovar,isSimpleAssign); 
         }
         if(sensitiveSourceCalled)
         {
@@ -335,7 +336,7 @@ int currentLine;
         }
     }
     
-    private static class MethodNamePrinter extends VoidVisitorAdapter<Void> {
+    private  class MethodNamePrinter extends VoidVisitorAdapter<Void> {
 
        @Override
        public void visit(VariableDeclarator  md, Void arg) 
