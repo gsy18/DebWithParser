@@ -51,12 +51,13 @@ import java.util.logging.Logger;
 public class ParserFinal 
 {
     
-CombinedTypeSolver combinedTypeSolver;
+//CombinedTypeSolver combinedTypeSolver;
 TreeMap<Integer,TreeSet<Node>>nodesByLine;
 HashMap <String,HashSet<String>>taint_information;
 HashSet <String>sensitive_variables;
 boolean sensitiveSourceCalled;
 int currentLine;
+CompilationUnit cu;
     /**
      * @param args the command line arguments
      */
@@ -71,9 +72,21 @@ int currentLine;
             combinedTypeSolver.add(new JarTypeSolver("android.jar"));
             combinedTypeSolver.add(new JavaParserTypeSolver("/home/gopesh/NetBeansProjects/ParserNow/src/main/java"));
             */
-            CompilationUnit cu = JavaParser.parse(new FileInputStream(pathToClassFile));
+            cu = JavaParser.parse(new FileInputStream(pathToClassFile));
             VoidVisitor<?> methodNameVisitor = new MethodNamePrinter();
             methodNameVisitor.visit(cu, null); 
+            
+            List <ObjectCreationExpr>anonymmousClasses=cu.findAll(ObjectCreationExpr.class);
+            for(ObjectCreationExpr cls:anonymmousClasses)
+            {
+                methodNameVisitor.visit(cls, null);
+            }
+            List <ClassOrInterfaceDeclaration>innerClasses=cu.findAll(ClassOrInterfaceDeclaration.class);
+            for(ClassOrInterfaceDeclaration cls:innerClasses)
+            {
+                methodNameVisitor.visit(cls, null);
+            }
+            
             /*for(int num:nodesByLine.keySet())
             {
                 System.out.print(num+" ");
@@ -380,11 +393,6 @@ int currentLine;
             {
                 super.visit(md, arg);
             }
-       }
-       @Override
-       public void visit(ObjectCreationExpr md, Void arg) 
-       {
-           // reject anonymous classes
        }
     }
 }

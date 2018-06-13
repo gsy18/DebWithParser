@@ -5,6 +5,8 @@
  */
 package DebWithParser;
 
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import java.awt.Color;
 import java.awt.Component;
 import java.io.BufferedReader;
@@ -14,6 +16,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFileChooser;
@@ -193,6 +196,7 @@ ParserFinal parse;
 
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
         // TODO add your handling code here:
+        
         new th().start();
     }//GEN-LAST:event_jButton2ActionPerformed
 
@@ -240,15 +244,15 @@ ParserFinal parse;
                 BufferedReader br=null;
                 try {
                     NewJFrame mm=new NewJFrame();
-                  //  JFileChooser jf=new JFileChooser();
+                    JFileChooser jf=new JFileChooser();
                     DefaultTableModel dm = (DefaultTableModel)mm.jTable1.getModel();
                     TableColumn tc=mm.jTable1.getColumnModel().getColumn(1);
                     TableColumn tc0=mm.jTable1.getColumnModel().getColumn(0);        
-                   // jf.showOpenDialog(null);
-                   // File ff=jf.getSelectedFile(); 
+                    jf.showOpenDialog(null);
+                    File ff=jf.getSelectedFile(); 
                     //System.out.println(ff.getAbsolutePath());
-                    String path="/home/gopesh/AndroidStudioProjects/Sms_Location/app/src/main/java/com/example/gopesh/sms_location/MainActivity.java";
-                    fname="MainActivity";
+                    String path=ff.getAbsolutePath();
+                    fname=fname=ff.getName().split("\\.")[0];
                     mm.parse=new ParserFinal(path);
                     br = new BufferedReader(new FileReader(path));
                     String hh=null;
@@ -341,9 +345,30 @@ ParserFinal parse;
     {
         @Override
         public void run() {
-            new Desbdesk2(fname,r1+1,r2+1,tf1.getText(),parse);
+            
+            System.out.println(parse.nodesByLine.keySet());
+            new Desbdesk2(getClassName(),r1+1,r2+1,tf1.getText(),parse);
         }
-
+        
+        public String getClassName()
+        {
+            CompilationUnit temp=parse.cu;
+            ClassOrInterfaceDeclaration classDebug=temp.findFirst(ClassOrInterfaceDeclaration.class,new Predicate<ClassOrInterfaceDeclaration>() {
+                @Override
+                public boolean test(ClassOrInterfaceDeclaration t) {
+                    int start=t.getBegin().get().line;
+                    int end=t.getEnd().get().line;
+                    if((start<=(r1+1))&&((r2+1)<=end))        
+                    {
+                        return true;
+                    }
+                    return false;
+                }
+            }).get();
+            String completeClassname=temp.getPackageDeclaration().get().getNameAsString()+"."+classDebug.getNameAsString();
+            System.out.println(completeClassname);
+            return completeClassname;
+        }
     }
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton jButton2;

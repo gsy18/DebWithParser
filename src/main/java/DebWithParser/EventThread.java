@@ -42,7 +42,7 @@ public class EventThread extends Thread {
         watchVariables=hhp;
         b1=i;
         b2=j;
-        System.out.println("got breakpoints "+i+" and"+j);
+        System.out.println("got breakpoints "+i+" and "+j);
         sensitive_sinks=sr2;
         parserCurrent=parse;
     }
@@ -91,8 +91,8 @@ public class EventThread extends Thread {
         // Make sure we sync on thread death
         tdr.setSuspendPolicy(EventRequest.SUSPEND_ALL);
         tdr.enable();
-        ClassPrepareRequest cpr = mgr.createClassPrepareRequest();            
-        cpr.addClassFilter("*."+debugClassName);
+        ClassPrepareRequest cpr = mgr.createClassPrepareRequest();   
+        cpr.addClassFilter(debugClassName+"*");
         cpr.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
         cpr.enable();        
     }
@@ -143,7 +143,7 @@ public class EventThread extends Thread {
                 System.out.println("1st breakpoint hit at=== "+event.location().lineNumber());                                     
                 StepRequest st=mgr.createStepRequest(event.thread(),StepRequest.STEP_LINE,StepRequest.STEP_OVER);
                 st.addCountFilter(1);
-                st.addClassFilter("*."+debugClassName);              
+                st.addClassFilter(debugClassName);              
                 st.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
                 st.enable(); 
                 System.out.println(sensitive_sources.size()+" size == "+sensitive_sinks.size());
@@ -206,7 +206,7 @@ public class EventThread extends Thread {
                  //  System.out.println("step event at "+event.location().lineNumber()+"  "+event.location().declaringType().name());
                    StepRequest st=mgr.createStepRequest(event.thread(),StepRequest.STEP_LINE,StepRequest.STEP_OVER);
                    st.addCountFilter(1);
-                   st.addClassFilter("*."+debugClassName);
+                   st.addClassFilter(debugClassName);
                   // st.addClassExclusionFilter("android.*");
                  //  st.addClassExclusionFilter("java.*");
                    st.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
@@ -347,34 +347,40 @@ public class EventThread extends Thread {
      */
     private void classPrepareEvent(ClassPrepareEvent event)  {      
 
+        System.out.println("loaded class "+event.referenceType().name());
         try 
         {      
             EventRequestManager mgr = vm.eventRequestManager();
-            System.out.print("class prepared  ");
+            
             ArrayList <Integer>temp_lines=new ArrayList<>();
             for(Location ln:event.referenceType().allLineLocations())
             {
                 temp_lines.add(ln.lineNumber());
             }
-            temp_lines.sort((i1,i2)->Integer.compare(i1, i2));
-            System.out.println(temp_lines);
-            try 
+            temp_lines.sort((i1,i2)->Integer.compare(i1, i2));            
+            if(temp_lines.contains(b1)&&temp_lines.contains(b2))
             {
-                ArrayList <Location>l1=(ArrayList <Location>) event.referenceType().locationsOfLine(b1);
-                if(l1.size()>1)
+                debugClassName=event.referenceType().name();
+                System.out.print(debugClassName+" class prepared  ");
+                System.out.println(temp_lines);
+                try 
                 {
-                    System.err.println("more than one location possible");
-                }
-                BreakpointRequest b1=mgr.createBreakpointRequest(l1.get(0));     
-                b1.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
-                b1.addThreadFilter(event.thread());
-                b1.enable();
-                System.out.println("breakpoints set");
-            } 
-            catch (AbsentInformationException ex) 
-            {
-                Logger.getLogger(EventThread.class.getName()).log(Level.SEVERE, null, ex);
-            } 
+                    ArrayList <Location>l1=(ArrayList <Location>) event.referenceType().locationsOfLine(b1);
+                    if(l1.size()>1)
+                    {
+                        System.err.println("more than one location possible");
+                    }
+                    BreakpointRequest b1=mgr.createBreakpointRequest(l1.get(0));     
+                    b1.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+                    b1.addThreadFilter(event.thread());
+                    b1.enable();
+                    System.out.println("breakpoints set");
+                } 
+                catch (AbsentInformationException ex) 
+                {
+                    Logger.getLogger(EventThread.class.getName()).log(Level.SEVERE, null, ex);
+                } 
+            }
         } catch (Exception ex) {
             ex.printStackTrace();
         }       
