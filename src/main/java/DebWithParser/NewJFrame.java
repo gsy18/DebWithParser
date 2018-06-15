@@ -5,8 +5,10 @@
  */
 package DebWithParser;
 
+import static DebWithParser.NewJFrame.breakPoints;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import java.awt.Color;
 import java.awt.Component;
 import java.io.BufferedReader;
@@ -16,6 +18,8 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.HashSet;
+import java.util.TreeSet;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -29,9 +33,11 @@ import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 
 public class NewJFrame extends javax.swing.JFrame {
-int r1=-1,r2=-1;
 static String fname;
 ParserFinal parse;
+Desbdesk2 debugCurrent;
+static HashSet <Integer> methodEndLines;
+static TreeSet <Integer> breakPoints;
     /**
      * Creates new form NewJFrame
      */
@@ -68,6 +74,7 @@ ParserFinal parse;
         jButton2 = new javax.swing.JButton();
         tf1 = new javax.swing.JTextField();
         jLabel1 = new javax.swing.JLabel();
+        jButton1 = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -109,7 +116,8 @@ ParserFinal parse;
 
         getContentPane().add(jScrollPane1, java.awt.BorderLayout.CENTER);
 
-        jButton2.setText("Start");
+        jButton2.setBackground(new java.awt.Color(229, 92, 72));
+        jButton2.setText("Start Debugging");
         jButton2.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jButton2ActionPerformed(evt);
@@ -124,21 +132,32 @@ ParserFinal parse;
 
         jLabel1.setText("Sensitive variables");
 
+        jButton1.setBackground(new java.awt.Color(24, 203, 24));
+        jButton1.setText("Resume");
+        jButton1.setEnabled(false);
+        jButton1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton1ActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addContainerGap()
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jButton2)
-                        .addGap(0, 0, Short.MAX_VALUE))
-                    .addComponent(tf1, javax.swing.GroupLayout.Alignment.TRAILING))
-                .addContainerGap())
-            .addGroup(jPanel1Layout.createSequentialGroup()
                 .addComponent(jLabel1)
                 .addGap(0, 0, Short.MAX_VALUE))
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(tf1, javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jButton2)
+                            .addComponent(jButton1))
+                        .addGap(0, 0, Short.MAX_VALUE)))
+                .addContainerGap())
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -149,7 +168,9 @@ ParserFinal parse;
                 .addComponent(tf1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(35, 35, 35)
                 .addComponent(jButton2)
-                .addContainerGap(285, Short.MAX_VALUE))
+                .addGap(18, 18, 18)
+                .addComponent(jButton1)
+                .addContainerGap(238, Short.MAX_VALUE))
         );
 
         getContentPane().add(jPanel1, java.awt.BorderLayout.LINE_END);
@@ -162,32 +183,15 @@ ParserFinal parse;
       if((jTable1.columnAtPoint(evt.getPoint())==0))  
        {
         int r=jTable1.rowAtPoint(evt.getPoint());
-        if(parse.nodesByLine.keySet().contains(r+1))
+        if(parse.nodesByLine.keySet().contains(r+1)||methodEndLines.contains(r+1))
         {
-        
-            if(r1==-1)
+            if(breakPoints.contains(r+1))
             {
-               r1=r; 
-            }               
-            else if(r==r1)
-            {
-                r1=-1;
+               breakPoints.remove(r+1);
             }
-            else if(r==r2)
-            {
-                r2=-1;
-            }
-            else if(r2==-1)
-            {
-                r2=r;
-            }
-            else if(r<r1)
-            {
-                r1=r;
-            }        
             else
             {
-                r2=r;
+                breakPoints.add(r+1);
             }
         }
        }
@@ -196,13 +200,19 @@ ParserFinal parse;
 
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
         // TODO add your handling code here:
-        
+        this.jButton2.setEnabled(false);
         new th().start();
     }//GEN-LAST:event_jButton2ActionPerformed
 
     private void tf1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_tf1ActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_tf1ActionPerformed
+
+    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+        // TODO add your handling code here:
+        jButton1.setEnabled(false);
+        debugCurrent.vm.resume();
+    }//GEN-LAST:event_jButton1ActionPerformed
 
     /**
      * @param args the command line arguments
@@ -254,6 +264,12 @@ ParserFinal parse;
                     String path=ff.getAbsolutePath();
                     fname=fname=ff.getName().split("\\.")[0];
                     mm.parse=new ParserFinal(path);
+                    methodEndLines=new HashSet<>();
+                    breakPoints=new TreeSet<>();
+                    for(MethodDeclaration methd:mm.parse.cu.findAll(MethodDeclaration.class))
+                    {
+                        methodEndLines.add(methd.getEnd().get().line);
+                    }
                     br = new BufferedReader(new FileReader(path));
                     String hh=null;
                     int c=1;
@@ -266,7 +282,7 @@ ParserFinal parse;
                     @Override
                     public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                        setText(value.toString());
-                       if((row==mm.r1)||(row==mm.r2))
+                       if(breakPoints.contains(row+1))
                        {
                             setBackground(new Color(255, 153, 153)); 
                        }
@@ -288,7 +304,7 @@ ParserFinal parse;
                     @Override
                     public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                        setText(value.toString());
-                       if((row==mm.r1)||(row==mm.r2))
+                       if(breakPoints.contains(row+1))
                        {
                             setBackground(new Color(255, 153, 153)); 
                        }
@@ -332,7 +348,7 @@ ParserFinal parse;
                         }
                     }
                     tc.setPreferredWidth(mx);                   
-                    System.out.println(tc.getPreferredWidth());
+                    //System.out.println(tc.getPreferredWidth());
                     mm.setVisible(true);
                 } catch (Exception ex) {
                     Logger.getLogger(NewJFrame.class.getName()).log(Level.SEVERE, null, ex);
@@ -346,8 +362,8 @@ ParserFinal parse;
         @Override
         public void run() {
             
-            System.out.println(parse.nodesByLine.keySet());
-            new Desbdesk2(getClassName(),r1+1,r2+1,tf1.getText(),parse);
+            debugCurrent=new Desbdesk2(NewJFrame.this,getClassName(),breakPoints,tf1.getText(),parse);
+            debugCurrent.dis();
         }
         
         public String getClassName()
@@ -358,7 +374,7 @@ ParserFinal parse;
                 public boolean test(ClassOrInterfaceDeclaration t) {
                     int start=t.getBegin().get().line;
                     int end=t.getEnd().get().line;
-                    if((start<=(r1+1))&&((r2+1)<=end))        
+                    if((start<=breakPoints.first())&&(breakPoints.last()<=end))        
                     {
                         return true;
                     }
@@ -371,6 +387,7 @@ ParserFinal parse;
         }
     }
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    public javax.swing.JButton jButton1;
     private javax.swing.JButton jButton2;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JPanel jPanel1;

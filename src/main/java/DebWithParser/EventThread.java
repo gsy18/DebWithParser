@@ -18,7 +18,6 @@ public class EventThread extends Thread {
     String debugClassName;
     private final VirtualMachine vm;   // Running VM
    // private final String[] excludes;   // Packages to exclude
-    int b1,b2;
     static String nextBaseIndent = ""; // Starting indent for next thread
     int lineJustExecuted;
     HashSet <String>sensitive_sources;
@@ -26,6 +25,8 @@ public class EventThread extends Thread {
     ParserFinal parserCurrent;
     String watchVariables="";
     String sensitiveSinkCall="";
+    NewJFrame currentWindow;
+    static TreeSet <Integer> breakPoints;
     boolean whetherLastMethodCallSensitive=false;
     private boolean connected = true;  // Connected to VM
     private boolean vmDied = true;     // VMDeath occurred
@@ -34,15 +35,15 @@ public class EventThread extends Thread {
     private Map<ThreadReference, ThreadTrace> traceMap =
        new HashMap<>();
 
-    EventThread(String yy, String hhp,int i, int j,HashSet <String>sr1,HashSet <String>sr2,VirtualMachine vm, String[] excludes, PrintWriter writer,ParserFinal parse) {
+    EventThread(NewJFrame frame,String yy, String hhp,TreeSet <Integer> stopLines,HashSet <String>sr1,HashSet <String>sr2,VirtualMachine vm, String[] excludes, PrintWriter writer,ParserFinal parse) {
         super("event-handler");
         this.vm = vm;
         sensitive_sources=sr1;
+        breakPoints=stopLines;
         debugClassName=yy;
         watchVariables=hhp;
-        b1=i;
-        b2=j;
-        System.out.println("got breakpoints "+i+" and "+j);
+        currentWindow=frame;
+        System.out.println("got breakpoints at "+breakPoints);
         sensitive_sinks=sr2;
         parserCurrent=parse;
     }
@@ -138,30 +139,89 @@ public class EventThread extends Thread {
         void breakpointEvent(BreakpointEvent event){
             try 
             {
+                
                 EventRequestManager mgr = vm.eventRequestManager(); 
-                lineJustExecuted=b1;
-                System.out.println("1st breakpoint hit at=== "+event.location().lineNumber());                                     
-                StepRequest st=mgr.createStepRequest(event.thread(),StepRequest.STEP_LINE,StepRequest.STEP_OVER);
-                st.addCountFilter(1);
-                st.addClassFilter(debugClassName);              
-                st.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
-                st.enable(); 
-                System.out.println(sensitive_sources.size()+" size == "+sensitive_sinks.size());
-                for(String cs:sensitive_sources)
+                // last breakpoint. Remove all requests
+                int line=event.location().lineNumber();
+                if(line==breakPoints.last())
                 {
-                    MethodEntryRequest menr = mgr.createMethodEntryRequest();
-                    menr.setSuspendPolicy(EventRequest.SUSPEND_NONE);
-                    menr.addClassFilter(cs.split("->")[0].trim());
-                    menr.addThreadFilter(event.thread());
-                    menr.enable();
+                    mgr.deleteEventRequests(mgr.stepRequests());
+                    mgr.deleteEventRequests(mgr.methodEntryRequests());
+                    mgr.deleteEventRequests(mgr.breakpointRequests());
+                    System.out.println("Last breakpoint at "+line);
+                    watchVariables=watchVariables.trim();
+                    if(!watchVariables.equals(""))
+                    {
+                        for(String wVar:watchVariables.split(" "))
+                        {
+                            wVar=wVar.trim();
+                            if(parserCurrent.taint_information.containsKey(wVar))
+                            {
+                                System.out.println(wVar+" has touched: "+parserCurrent.taint_information.get(wVar));
+                            }
+                            else
+                            {
+                                System.out.println(wVar+" has touched Nothing");
+                            }
+                        }
+                    }
                 }
-                for(String cs:sensitive_sinks)
+                else if(line==breakPoints.first())
                 {
-                    MethodEntryRequest menr = mgr.createMethodEntryRequest();
-                    menr.setSuspendPolicy(EventRequest.SUSPEND_NONE);
-                    menr.addClassFilter(cs.split("->")[0].trim());
-                    menr.addThreadFilter(event.thread());
-                    menr.enable();
+                    lineJustExecuted=line;
+                    System.out.println("1st breakpoint hit at=== "+line);                                     
+                    StepRequest st=mgr.createStepRequest(event.thread(),StepRequest.STEP_LINE,StepRequest.STEP_OVER);
+                    st.addCountFilter(1);
+                    st.addClassFilter(debugClassName);              
+                    st.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+                    st.enable(); 
+                    System.out.println(sensitive_sources.size()+" size == "+sensitive_sinks.size());
+                    for(String cs:sensitive_sources)
+                    {
+                        MethodEntryRequest menr = mgr.createMethodEntryRequest();
+                        menr.setSuspendPolicy(EventRequest.SUSPEND_NONE);
+                        menr.addClassFilter(cs.split("->")[0].trim());
+                        menr.addThreadFilter(event.thread());
+                        menr.enable();
+                    }
+                    for(String cs:sensitive_sinks)
+                    {
+                        MethodEntryRequest menr = mgr.createMethodEntryRequest();
+                        menr.setSuspendPolicy(EventRequest.SUSPEND_NONE);
+                        menr.addClassFilter(cs.split("->")[0].trim());
+                        menr.addThreadFilter(event.thread());
+                        menr.enable();
+                    }
+                }
+                else
+                {
+                    System.out.println("breakpoint hit at "+line);
+                    watchVariables=watchVariables.trim();
+                    if(!watchVariables.equals(""))
+                    {
+                        for(String wVar:watchVariables.split(" "))
+                        {
+                            wVar=wVar.trim();
+                            if(parserCurrent.taint_information.containsKey(wVar))
+                            {
+                                System.out.println(wVar+" has touched: "+parserCurrent.taint_information.get(wVar));
+                            }
+                            else
+                            {
+                                System.out.println(wVar+" has touched Nothing");
+                            }
+                        }
+                    }
+                    
+                    mgr.deleteEventRequests(mgr.stepRequests());
+                    StepRequest st=mgr.createStepRequest(event.thread(),StepRequest.STEP_LINE,StepRequest.STEP_OVER);
+                    st.addCountFilter(1);
+                    st.addClassFilter(debugClassName);              
+                    st.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+                    st.enable(); 
+                    
+                    currentWindow.jButton1.setEnabled(true);
+                    vm.suspend();
                 }
             } catch (Exception ex) {
                 Logger.getLogger(EventThread.class.getName()).log(Level.SEVERE, null, ex);
@@ -176,43 +236,21 @@ public class EventThread extends Thread {
                 whetherLastMethodCallSensitive=false;
                 sensitiveSinkCall="";
                 System.out.println("At Line:"+lineJustExecuted+" Sensitive Variables: "+parserCurrent.sensitive_variables);
-                if(b2==lineJustExecuted)
+                
+                mgr.deleteEventRequest(event.request());
+                //  System.out.println("step event at "+event.location().lineNumber()+"  "+event.location().declaringType().name());
+               
+                int line=event.location().lineNumber();
+                if(!breakPoints.contains(line))
                 {
-                    mgr.deleteEventRequest(mgr.stepRequests().get(0));
-                    mgr.deleteEventRequests(mgr.methodEntryRequests());
-                    mgr.deleteEventRequests(mgr.breakpointRequests());
-                    System.out.println("second breakpoint at "+b2);
-                    watchVariables=watchVariables.trim();
-                    if(!watchVariables.equals(""))
-                    {
-                        for(String wVar:watchVariables.split(" "))
-                        {
-                            wVar=wVar.trim();
-                            if(parserCurrent.taint_information.containsKey(wVar))
-                            {
-                                System.out.println(wVar+" has touched: "+parserCurrent.taint_information.get(wVar));
-                            }
-                            else
-                            {
-                                System.out.println(wVar+" has touched: "+wVar);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    
-                   mgr.deleteEventRequest(event.request());
-                 //  System.out.println("step event at "+event.location().lineNumber()+"  "+event.location().declaringType().name());
-                   StepRequest st=mgr.createStepRequest(event.thread(),StepRequest.STEP_LINE,StepRequest.STEP_OVER);
-                   st.addCountFilter(1);
-                   st.addClassFilter(debugClassName);
-                  // st.addClassExclusionFilter("android.*");
-                 //  st.addClassExclusionFilter("java.*");
-                   st.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
-                   st.enable(); 
-                }
-                                
+                    StepRequest st=mgr.createStepRequest(event.thread(),StepRequest.STEP_LINE,StepRequest.STEP_OVER);
+                    st.addCountFilter(1);
+                    st.addClassFilter(debugClassName);
+                    // st.addClassExclusionFilter("android.*");
+                    //  st.addClassExclusionFilter("java.*");
+                    st.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+                    st.enable(); 
+                }                                                                
             } catch (Exception ex) 
             {
                //System.err.println("errorrrrrrr at "+event.location()+"  "+ex.toString());
@@ -345,41 +383,43 @@ public class EventThread extends Thread {
      * A new class has been loaded.
      * Set watchpoints on each of its fields
      */
-    private void classPrepareEvent(ClassPrepareEvent event)  {      
+    private void classPrepareEvent(ClassPrepareEvent event)  
+    {      
 
-        System.out.println("loaded class "+event.referenceType().name());
         try 
         {      
             EventRequestManager mgr = vm.eventRequestManager();
             
-            ArrayList <Integer>temp_lines=new ArrayList<>();
+            TreeSet <Integer>temp_lines=new TreeSet<>();
             for(Location ln:event.referenceType().allLineLocations())
             {
                 temp_lines.add(ln.lineNumber());
-            }
-            temp_lines.sort((i1,i2)->Integer.compare(i1, i2));            
-            if(temp_lines.contains(b1)&&temp_lines.contains(b2))
+            }           
+            if(temp_lines.containsAll(breakPoints))
             {
                 debugClassName=event.referenceType().name();
                 System.out.print(debugClassName+" class prepared  ");
                 System.out.println(temp_lines);
-                try 
+                for(int b1:breakPoints)
                 {
-                    ArrayList <Location>l1=(ArrayList <Location>) event.referenceType().locationsOfLine(b1);
-                    if(l1.size()>1)
+                    try 
                     {
-                        System.err.println("more than one location possible");
+                        ArrayList <Location>l1=(ArrayList <Location>) event.referenceType().locationsOfLine(b1);
+                        if(l1.size()>1)
+                        {
+                            System.err.println("more than one location possible");
+                        }
+                        BreakpointRequest br1=mgr.createBreakpointRequest(l1.get(0));     
+                        br1.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
+                        br1.addThreadFilter(event.thread());
+                        br1.enable();
+                    } 
+                    catch (AbsentInformationException ex) 
+                    {
+                        Logger.getLogger(EventThread.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                    BreakpointRequest b1=mgr.createBreakpointRequest(l1.get(0));     
-                    b1.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
-                    b1.addThreadFilter(event.thread());
-                    b1.enable();
-                    System.out.println("breakpoints set");
-                } 
-                catch (AbsentInformationException ex) 
-                {
-                    Logger.getLogger(EventThread.class.getName()).log(Level.SEVERE, null, ex);
-                } 
+                }
+                System.out.println("breakpoints set"); 
             }
         } catch (Exception ex) {
             ex.printStackTrace();

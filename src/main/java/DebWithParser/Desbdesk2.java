@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -25,11 +26,14 @@ import java.util.logging.Logger;
 public class Desbdesk2{
 
     // Running remote VM
-    private VirtualMachine vm;
+    VirtualMachine vm;
     HashSet <String>sources;
     HashSet <String>sinks;
     String fname;
     String s_var;
+    PrintWriter writer;
+    ParserFinal parse;
+    static TreeSet <Integer> breakPoints;
     // Thread transferring remote error stream to our error stream
     private Thread errThread = null;
 
@@ -38,14 +42,13 @@ public class Desbdesk2{
 
     // Mode for tracing the Trace program (default= 0 off)
     private int debugTraceMode = 0;
-    int r1,r2;
     //  Do we want to watch assignments to fields
     private boolean watchFields = true;
 
     // Class patterns for which we don't want events
     private String[] excludes = {"java.*", "javax.*", "sun.*",
                                  "com.sun.*","android*","com.android*"};
-
+    NewJFrame currentWindow;
     /**
      * main
      */
@@ -58,15 +61,16 @@ public class Desbdesk2{
      * Launch target VM.
      * Generate the trace.
      */
-    Desbdesk2(String mhh,int i,int j,String sv,ParserFinal parse) 
+    Desbdesk2(NewJFrame frame, String mhh,TreeSet <Integer> stopLines,String sv,ParserFinal parse) 
     {
-       r1=i;
-       r2=j;
+       breakPoints=stopLines;
        fname=mhh;
        s_var=sv;
+       currentWindow=frame;
        sources=new HashSet<>();
        sinks=new HashSet<>();
        BufferedReader br2=null;  
+       this.parse=parse;
         try
         {  
           BufferedReader br1=new BufferedReader(new FileReader("sources_a"));
@@ -80,7 +84,7 @@ public class Desbdesk2{
           {
             sinks.add(hh); 
           }
-          PrintWriter writer = new PrintWriter(System.out);
+          writer = new PrintWriter(System.out);
           Connector connector= findLaunchingConnector();
           Map arguments=connector.defaultArguments();
           Connector.Argument host=(Connector.Argument) arguments.get("hostname");
@@ -101,16 +105,20 @@ public class Desbdesk2{
            vm=attacher.attach(arguments);    
            System.out.println("rerer");
            //vm=launcher.launch(arguments);
-           generateTrace(writer,parse);           
+                     
         }
         catch (Exception e) {  
             e.printStackTrace();
         } 
         
     }
+    void dis()
+    {
+        generateTrace(writer,parse); 
+    }
     void generateTrace(PrintWriter writer,ParserFinal parse) {
         vm.setDebugTraceMode(debugTraceMode);
-        EventThread eventThread = new EventThread(fname,s_var, r1,r2,sources,sinks,vm, excludes, writer,parse);
+        EventThread eventThread = new EventThread(currentWindow,fname,s_var,breakPoints,sources,sinks,vm, excludes, writer,parse);
         eventThread.setEventRequests(watchFields);
         eventThread.start();
        // redirectOutput();
