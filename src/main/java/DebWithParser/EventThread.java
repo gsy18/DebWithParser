@@ -85,13 +85,14 @@ public class EventThread extends Thread {
         ExceptionRequest excReq = mgr.createExceptionRequest(null,
                                                              true, true);
         // suspend so we can step
+        excReq.addClassFilter(debugClassName+"*");
         excReq.setSuspendPolicy(EventRequest.SUSPEND_ALL);
         excReq.enable();        
        
-        ThreadDeathRequest tdr = mgr.createThreadDeathRequest();
+        /*ThreadDeathRequest tdr = mgr.createThreadDeathRequest();
         // Make sure we sync on thread death
         tdr.setSuspendPolicy(EventRequest.SUSPEND_ALL);
-        tdr.enable();
+        tdr.enable();*/
         ClassPrepareRequest cpr = mgr.createClassPrepareRequest();   
         cpr.addClassFilter(debugClassName+"*");
         cpr.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
