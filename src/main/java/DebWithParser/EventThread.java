@@ -46,6 +46,15 @@ public class EventThread extends Thread {
         System.out.println("got breakpoints at "+breakPoints);
         sensitive_sinks=sr2;
         parserCurrent=parse;
+        watchVariables=watchVariables.trim();
+        if(!watchVariables.equals(""))
+            {
+                for(String wVar:watchVariables.split(" "))
+                {
+                    wVar=wVar.trim();
+                    parserCurrent.sensitive_variables.add(wVar);
+                }
+            }
     }
 
     /**
@@ -422,8 +431,7 @@ public class EventThread extends Thread {
                 }
                 System.out.println("breakpoints set"); 
             }
-        } catch (Exception ex) {
-            ex.printStackTrace();
+        } catch (AbsentInformationException ex) {
         }       
     }
     private void exceptionEvent(ExceptionEvent event) 
