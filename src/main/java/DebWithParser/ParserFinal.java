@@ -277,13 +277,17 @@ CompilationUnit cu;
             }
             exp=temp;
         }
-        if(exp.isMethodCallExpr())
+       /* if(exp.isMethodCallExpr())
         {
             return "";
-        }   
-        else
+        }   */
+        if(exp.isNameExpr()||exp.isFieldAccessExpr())
         {
             return exp.toString();
+        }
+        else
+        {
+            return "";
         }
     }
     
