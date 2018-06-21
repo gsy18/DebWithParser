@@ -9,6 +9,9 @@ import static DebWithParser.NewJFrame.breakPoints;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.stmt.ForStmt;
+import com.github.javaparser.ast.stmt.IfStmt;
+import com.github.javaparser.ast.stmt.WhileStmt;
 import java.awt.Color;
 import java.awt.Component;
 import java.io.BufferedReader;
@@ -18,7 +21,9 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.TreeSet;
 import java.util.function.Predicate;
 import java.util.logging.Level;
@@ -38,6 +43,9 @@ ParserFinal parse;
 Desbdesk2 debugCurrent;
 static HashSet <Integer> methodEndLines;
 static TreeSet <Integer> breakPoints;
+  List <Integer> ifs_int;
+        List <Integer> fors_int;
+        List <Integer> whs_int;
     /**
      * Creates new form NewJFrame
      */
@@ -183,7 +191,8 @@ static TreeSet <Integer> breakPoints;
       if((jTable1.columnAtPoint(evt.getPoint())==0))  
        {
         int r=jTable1.rowAtPoint(evt.getPoint());
-        if(parse.nodesByLine.keySet().contains(r+1)||methodEndLines.contains(r+1))
+       
+        if(parse.nodesByLine.keySet().contains(r+1)||methodEndLines.contains(r+1)||ifs_int.contains(r+1)||fors_int.contains(r+1)||whs_int.contains(r+1))
         {
             if(breakPoints.contains(r+1))
             {
@@ -264,6 +273,7 @@ static TreeSet <Integer> breakPoints;
                     String path=ff.getAbsolutePath();
                     fname=fname=ff.getName().split("\\.")[0];
                     mm.parse=new ParserFinal(path);
+                    mm.setAllowedeBreakpoints();
                     methodEndLines=new HashSet<>();
                     breakPoints=new TreeSet<>();
                     for(MethodDeclaration methd:mm.parse.cu.findAll(MethodDeclaration.class))
@@ -356,7 +366,28 @@ static TreeSet <Integer> breakPoints;
             }
         });
     }
-
+    void setAllowedeBreakpoints()
+    {
+        List <IfStmt>ifs=parse.cu.findAll(IfStmt.class);
+        List <ForStmt>fors=parse.cu.findAll(ForStmt.class);
+        List <WhileStmt>whs=parse.cu.findAll(WhileStmt.class);
+        
+        ifs_int=new ArrayList<>();
+        fors_int=new ArrayList<>();
+        whs_int=new ArrayList<>();
+        for(IfStmt cur:ifs)
+        {
+            ifs_int.add(cur.getBegin().get().line);
+        }
+         for(ForStmt cur:fors)
+        {
+            fors_int.add(cur.getBegin().get().line);
+        }
+          for(WhileStmt cur:whs)
+        {
+            whs_int.add(cur.getBegin().get().line);
+        }
+    }
     class th extends Thread
     {
         @Override
