@@ -58,6 +58,7 @@ HashSet <String>sensitive_variables;
 boolean sensitiveSourceCalled;
 int currentLine;
 CompilationUnit cu;
+String watchVariables="";
     /**
      * @param args the command line arguments
      */
@@ -226,7 +227,10 @@ CompilationUnit cu;
         
         if(allVar.isEmpty()&&allClassVar.isEmpty()&&(!right.findFirst(MethodCallExpr.class).isPresent())&& isSimpleAssign)
         {
-            sensitive_variables.remove(tovar);
+            if(!checkWatchVariable(tovar))
+            {
+                sensitive_variables.remove(tovar);
+            }
         }
         else
         {
@@ -237,7 +241,19 @@ CompilationUnit cu;
             sensitive_variables.add(tovar);
         }
     }
-                    
+    
+    private boolean checkWatchVariable(String checkVar)
+    {
+        for(String wvar:watchVariables.split(" "))
+        {
+            wvar=wvar.trim();
+            if(wvar.equals(checkVar))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
     private void handleVariableDeclaration(VariableDeclarator md)
     {
          if(md.toString().contains("="))
@@ -347,7 +363,10 @@ CompilationUnit cu;
             }
             if(assignStatement&&was_toVar_SensitiveBeforeAssign&&(!toVar_Touched_Sensitive))
             {
-                sensitive_variables.remove(toVar);
+                if(!checkWatchVariable(toVar))
+                {
+                  sensitive_variables.remove(toVar);
+                }
                // System.out.println("-------------------removed------------"+toVar);
             }
         }

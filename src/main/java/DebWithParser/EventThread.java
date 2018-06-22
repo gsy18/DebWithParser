@@ -180,7 +180,7 @@ public class EventThread extends Thread {
                 {
                     lineJustExecuted=line;
                     System.out.println("1st breakpoint hit at=== "+line);   
-                    System.out.println("Watch Variables || "+watchVariables+" || added to snesitve variables"); 
+                    System.out.println("Watch Variables || "+watchVariables+" || added to sensitve variables"); 
                     StepRequest st=mgr.createStepRequest(event.thread(),StepRequest.STEP_LINE,StepRequest.STEP_OVER);
                     st.addCountFilter(1);
                     st.addClassFilter(debugClassName);              

@@ -392,7 +392,7 @@ static TreeSet <Integer> breakPoints;
     {
         @Override
         public void run() {
-            
+            parse.watchVariables=tf1.getText().trim();
             debugCurrent=new Desbdesk2(NewJFrame.this,getClassName(),breakPoints,tf1.getText(),parse);
             debugCurrent.dis();
         }
