@@ -21,6 +21,7 @@ import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.ForeachStmt;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.printer.YamlPrinter;
@@ -123,6 +124,10 @@ String watchVariables="";
                 {
                     handleAssignment((AssignExpr)curNode);
                 }
+                else if(curNode instanceof ForeachStmt)
+                {
+                    handleForeachStmt((ForeachStmt)curNode);
+                }
                 else
                 {
                     handleVariableDeclaration((VariableDeclarator)curNode);
@@ -159,6 +164,23 @@ String watchVariables="";
         }        
     }
     
+            
+    private void handleForeachStmt(ForeachStmt md)
+    {
+        String tovar=md.getVariable().getVariables().get(0).getNameAsString();
+        Node right=md.getIterable();
+        for(ObjectCreationExpr toremov:right.findAll(ObjectCreationExpr.class))
+        {
+            right.remove(toremov);
+        }
+        List <NameExpr>allVar=right.findAll(NameExpr.class);
+        List <FieldAccessExpr>allClassVar=right.findAll(FieldAccessExpr.class);
+        printVarFlowingInto(allVar,allClassVar,tovar,false);
+        if(sensitiveSourceCalled)
+        {
+            sensitive_variables.add(tovar);
+        }                         
+    }
     private void handleMethodCall(MethodCallExpr md)
     {
         String tovar=trimToVar(md);
@@ -416,6 +438,19 @@ String watchVariables="";
             {
                 super.visit(md, arg);
             }
+       }
+       
+       public void visit(ForeachStmt md, Void arg) 
+       {
+            int line=md.getBegin().get().line;
+            if(nodesByLine.get(line)==null)
+            {
+                nodesByLine.put(line,new TreeSet<Node>(new NodeComparator()));
+            }
+            nodesByLine.get(line).add(md);
+            
+            super.visit(md, arg);
+            
        }
     }
 }
