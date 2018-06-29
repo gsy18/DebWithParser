@@ -1,3 +1,9 @@
+/*
+
+It is declared by me that I used some code from https://docs.oracle.com/javase/8/docs/technotes/guides/jpda/trace.html
+in this file
+
+*/
 
 package DebWithParser;
 
